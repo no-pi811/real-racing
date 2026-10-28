@@ -170,10 +170,25 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
 .pick .po { font-size: 12px; color: var(--muted); }
 .pick.on { border-color: var(--gold); background: rgba(212, 175, 55, .16); }
 .pick .ord { position: absolute; top: -8px; right: -6px; background: var(--red); color: #fff; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
-.form-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.form-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
 .form-col h4 { margin: 0 0 6px; font-size: 14px; color: var(--gold2); }
-.form-col .pick-grid { grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); }
-.form-col .pick { justify-content: center; padding: 6px; min-height: 48px; }
+.form-col h4 { display: flex; justify-content: space-between; align-items: baseline; }
+.form-col .pick-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
+.pick.compact { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 2px 6px; padding: 6px 7px; min-height: 52px; align-items: center; }
+.pick.compact .num-chip { grid-row: 1 / 3; width: 28px; height: 28px; font-size: 15px; }
+.pc-info { display: flex; justify-content: space-between; gap: 4px; font-size: 11px; line-height: 1.2; white-space: nowrap; min-width: 0; }
+.pc-info b { font-weight: 800; color: #cfd8e3; }
+.pc-info b.top { color: #ff8a7a; }
+.pc-info span { font-weight: 800; font-variant-numeric: tabular-nums; }
+.pc-name { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sort-row { display: flex; align-items: center; gap: 10px; margin: -2px 0 12px; }
+.sort-row .seg button { padding: 6px 12px; min-height: 34px; font-size: 13px; }
+.combo-list { margin-top: 10px; background: rgba(0, 0, 0, .22); border: 1px solid rgba(255, 255, 255, .08); border-radius: 10px; padding: 8px 12px; }
+.combo-list summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--gold2); padding: 4px 0; }
+.cl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; margin-top: 6px; }
+.cl-grid div { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 3px 0; border-bottom: 1px dashed rgba(255, 255, 255, .08); font-variant-numeric: tabular-nums; }
+.cl-grid span { flex: 1; font-weight: 700; }
+.cl-grid small { color: var(--muted); font-size: 11px; }
 .slip { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .slip .cell { background: rgba(0, 0, 0, .25); border-radius: 10px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .06); }
 .slip .cell .k { font-size: 11px; color: var(--muted); }
@@ -4217,7 +4232,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       g.prepareOdds(race, (p) => { bar.style.width = Math.round(p * 100) + '%'; }).then(() => {
         this.closeModal();
         g.setCurrent(race);
-        this.bet = { type: 'tansho', mode: 'normal', sel: [], form: [[], [], []], stake: this.bet.stake || 100 };
+        this.bet = { type: 'tansho', mode: 'normal', sel: [], form: [[], [], []], stake: this.bet.stake || 100, sort: this.bet.sort || 'num' };
         this.cardTab = 'card';
         this.openDetail = null;
         this.renderCard();
@@ -4317,19 +4332,30 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       const oddsOf = (num) => b.type === 'fukusho' ? r.odds.fukusho[num] : r.odds.tansho[num];
       let h = '<div class="panel"><div class="bet-types">' + D.BET_TYPES.map((t) => '<button data-bt="' + t.id + '" class="' + (t.id === b.type ? 'on' : '') + '">' + t.name + '</button>').join('') + '</div>' +
         '<p class="bt-desc"><b>' + T.name + '</b>：' + T.desc + (T.ordered && b.mode === 'normal' ? '（タップした順に 1着→' + (k === 3 ? '2着→3着' : '2着') + '）' : '') + '</p>' +
-        '<div class="modes">' + modes.map((m) => '<button data-mode="' + m[0] + '" class="' + (b.mode === m[0] ? 'on' : '') + '">' + m[1] + '</button>').join('') + '</div>';
+        '<div class="modes">' + modes.map((m) => '<button data-mode="' + m[0] + '" class="' + (b.mode === m[0] ? 'on' : '') + '">' + m[1] + '</button>').join('') + '</div>' +
+        '<div class="sort-row"><span class="small muted">並び順</span><div class="seg">' + [['num', '馬番順'], ['pop', '人気順']].map(([v, l]) => '<button data-sort="' + v + '" class="' + ((b.sort || 'num') === v ? 'on' : '') + '">' + l + '</button>').join('') + '</div></div>';
+      // 並び順（人気順を選ぶと、すべての選択欄が1番人気から並ぶ）
+      const runners = b.sort === 'pop' ? r.runners.slice().sort((x, y) => r.odds.popularity[x.num] - r.odds.popularity[y.num]) : r.runners;
       const pickBtn = (ru, on, ord, compact) => {
         const hs = g.horse(ru.horseId);
+        const pop = r.odds.popularity[ru.num];
+        if (compact) {
+          // フォーメーション用: 馬番・人気・単勝オッズ・馬名を小さく表示
+          return '<button class="pick compact' + (on ? ' on' : '') + '" data-num="' + ru.num + '" title="' + esc(hs.name) + '">' + chip(ru.num, ru.waku) +
+            '<div class="pc-info"><b class="' + (pop <= 3 ? 'top' : '') + '">' + pop + '人気</b><span>' + U.fmtOdds(r.odds.tansho[ru.num]) + '</span></div>' +
+            '<div class="pc-name">' + esc(hs.name) + '</div></button>';
+        }
         return '<button class="pick' + (on ? ' on' : '') + '" data-num="' + ru.num + '">' + chip(ru.num, ru.waku) +
-          (compact ? '' : '<div style="min-width:0"><div class="pn">' + esc(hs.name) + '</div><div class="po">' + (k === 1 ? (b.type === 'fukusho' ? '複' : '単') + ' ' + U.fmtOdds(oddsOf(ru.num)) + '倍' : '単 ' + U.fmtOdds(r.odds.tansho[ru.num]) + '・' + r.odds.popularity[ru.num] + '人気') + '</div></div>') +
+          '<div style="min-width:0"><div class="pn">' + esc(hs.name) + '</div><div class="po">' + (k === 1 ? (b.type === 'fukusho' ? '複' : '単') + ' ' + U.fmtOdds(oddsOf(ru.num)) + '倍・' + pop + '人気' : '単 ' + U.fmtOdds(r.odds.tansho[ru.num]) + '・' + pop + '人気') + '</div></div>' +
           (ord ? '<span class="ord">' + ord + '</span>' : '') + '</button>';
       };
       if (b.mode === 'formation') {
         const labels = T.ordered ? ['1着', '2着', '3着'] : ['1頭目', '2頭目', '3頭目'];
-        h += '<div class="form-cols">' + [...Array(k).keys()].map((ci) => '<div class="form-col" data-col="' + ci + '"><h4>' + labels[ci] + '</h4><div class="pick-grid">' +
-          r.runners.map((ru) => pickBtn(ru, b.form[ci].indexOf(ru.num) >= 0, null, true)).join('') + '</div></div>').join('') + '</div>';
+        h += '<div class="form-cols">' + [...Array(k).keys()].map((ci) => '<div class="form-col" data-col="' + ci + '"><h4>' + labels[ci] +
+          '<span class="small muted">' + (b.form[ci].length ? b.form[ci].length + '頭選択' : '') + '</span></h4><div class="pick-grid">' +
+          runners.map((ru) => pickBtn(ru, b.form[ci].indexOf(ru.num) >= 0, null, true)).join('') + '</div></div>').join('') + '</div>';
       } else {
-        h += '<div class="pick-grid" id="bt-grid">' + r.runners.map((ru) => {
+        h += '<div class="pick-grid" id="bt-grid">' + runners.map((ru) => {
           const i = b.sel.indexOf(ru.num);
           const ord = i >= 0 && T.ordered && b.mode === 'normal' ? (i + 1) + '着' : null;
           return pickBtn(ru, i >= 0, ord, false);
@@ -4353,6 +4379,14 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
         '<div class="cell"><div class="k">合計金額</div><div class="v">' + U.fmtCoin(total) + '</div></div>' +
         '<div class="cell"><div class="k">購入後の残り</div><div class="v ' + (after < 0 ? 'minus' : '') + '">' + U.fmtCoin(after) + '</div></div></div>' +
         (n === 1 ? '<div class="small muted" style="margin-top:8px">的中時の払戻: ' + U.fmtCoin(B.payoutOf(b.stake, RRG.odds.lookup(r.odds, b.type, combos[0]))) + 'コイン（利益 ' + signed(B.payoutOf(b.stake, RRG.odds.lookup(r.odds, b.type, combos[0])) - b.stake) + '）</div>' : '') +
+        (n > 1 ? (() => {
+          // 買い目ごとのオッズ一覧（オッズの高い順・最大60点まで表示）
+          const list = combos.map((c) => ({ c, o: RRG.odds.lookup(r.odds, b.type, c) })).sort((x, y) => x.o - y.o);
+          const sep = T.ordered ? '→' : '-';
+          return '<details class="combo-list"' + (n <= 12 ? ' open' : '') + '><summary>買い目とオッズ一覧（' + n + '点・低オッズ順）</summary><div class="cl-grid">' +
+            list.slice(0, 60).map((x) => '<div><span>' + x.c.join(sep) + '</span><b>' + U.fmtOdds(x.o) + '倍</b><small>' + U.fmtCoin(B.payoutOf(b.stake, x.o)) + '</small></div>').join('') +
+            '</div>' + (n > 60 ? '<p class="small muted">ほか ' + (n - 60) + '点</p>' : '') + '</details>';
+        })() : '') +
         '<div class="btn-row"><button class="btn" id="bt-clear">選択をクリア</button><button class="btn btn-gold btn-lg" id="bt-buy"' + (n && after >= 0 ? '' : ' disabled') + '>購入する（' + n + '点 / ' + U.fmtCoin(total) + '）</button></div></div>';
       // 購入済み
       h += '<h2 class="sec" style="margin-top:22px">購入済み馬券（' + r.tickets.length + '件）</h2>';
@@ -4370,6 +4404,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
         if (b.type !== e.dataset.bt) { b.type = e.dataset.bt; b.sel = []; b.form = [[], [], []]; }
         this.renderBetting(box);
       }));
+      box.querySelectorAll('[data-sort]').forEach((e) => e.addEventListener('click', () => { RRG.audio.click(); b.sort = e.dataset.sort; this.renderBetting(box); }));
       box.querySelectorAll('[data-mode]').forEach((e) => e.addEventListener('click', () => { RRG.audio.click(); b.mode = e.dataset.mode; b.sel = []; b.form = [[], [], []]; this.renderBetting(box); }));
       if (b.mode === 'formation') {
         box.querySelectorAll('.form-col').forEach((col) => {
