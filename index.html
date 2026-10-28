@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0b1a2e">
+  <meta name="description" content="3Dの競走馬が駆ける本格競馬シミュレーション＆馬券予想ゲーム（ゲーム内コインのみ・換金なし）">
+  <title>リアルレーシング・グランプリ</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230b1a2e' stroke='%23d4af37' stroke-width='4'/%3E%3Ctext x='32' y='42' font-size='28' text-anchor='middle' fill='%23d4af37' font-family='serif' font-weight='bold'%3ER%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <button id="btn-home" class="tb-home" aria-label="メニューへ">🏠</button>
+      <div class="tb-title">REAL RACING <span>GRAND PRIX</span></div>
+      <div class="tb-coins" id="tb-coins"><i class="coin-ic"></i><b id="coin-val">0</b></div>
+    </header>
+
+    <main id="screens">
+      <section id="scr-menu" class="screen"></section>
+      <section id="scr-venue" class="screen"></section>
+      <section id="scr-card" class="screen"></section>
+      <section id="scr-race" class="screen"><div id="race-stage"></div></section>
+      <section id="scr-result" class="screen"></section>
+      <section id="scr-stats" class="screen"></section>
+      <section id="scr-horses" class="screen"></section>
+      <section id="scr-settings" class="screen"></section>
+    </main>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+  <canvas id="fx-canvas"></canvas>
+  <noscript><p style="color:#fff;padding:20px">このゲームを遊ぶには JavaScript を有効にしてください。</p></noscript>
+  <div id="boot-error" hidden></div>
+
+  <!-- 読み込み順: 共通 → データ → ロジック → 描画 → UI -->
+  <script src="js/util.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/course.js"></script>
+  <script src="js/raceSim.js"></script>
+  <script src="js/odds.js"></script>
+  <script src="js/betting.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/engine3d.js"></script>
+  <script src="js/horseModel.js"></script>
+  <script src="js/stadium.js"></script>
+  <script src="js/raceView.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
