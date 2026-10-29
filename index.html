@@ -242,16 +242,17 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
 .rv-row.mine { background: rgba(212, 175, 55, .16); }
 .rv-row.fin .rv-pos { color: #fff; }
 .rv-minimap { position: absolute; right: 10px; top: 92px; width: 176px; height: 96px; border-radius: 10px; border: 1px solid rgba(212, 175, 55, .3); }
-.rv-comment { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: min(720px, 92%); background: rgba(5, 12, 24, .75); border-left: 3px solid var(--gold); padding: 7px 12px; border-radius: 6px; font-size: 14px; font-weight: 700; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-dock { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 28px; background: linear-gradient(0deg, rgba(5, 12, 24, .9) 0%, rgba(5, 12, 24, .55) 60%, rgba(5, 12, 24, 0)); pointer-events: none; }
+.rv-comment { position: relative; max-width: min(720px, 92%); background: rgba(5, 12, 24, .75); border-left: 3px solid var(--gold); padding: 7px 12px; border-radius: 6px; font-size: 14px; font-weight: 700; text-shadow: 0 1px 2px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rv-comment.flash { animation: cflash .5s ease; }
-@keyframes cflash { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
-.rv-progress { position: absolute; left: 12px; right: 12px; bottom: 72px; display: flex; align-items: center; gap: 8px; }
+@keyframes cflash { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.rv-progress { position: relative; align-self: stretch; margin: 0 12px; display: flex; align-items: center; gap: 8px; }
 .rv-pl { font-size: 11px; font-weight: 800; color: var(--gold2); }
 .rv-bar { position: relative; flex: 1; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .18); }
 .rv-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: linear-gradient(90deg, #2a8c63, var(--gold2)); }
 .rv-mark { position: absolute; top: 50%; width: 18px; height: 18px; margin-left: -9px; margin-top: -9px; border-radius: 50%; font-size: 10px; font-weight: 800; display: grid; place-items: center; border: 1.5px solid; transition: left .1s linear; }
 .rv-mark.mine { box-shadow: 0 0 0 2px var(--gold2); }
-.rv-controls { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: 6px; padding: 8px 8px calc(10px + var(--safe-b)); background: linear-gradient(0deg, rgba(5, 12, 24, .88), rgba(5, 12, 24, 0)); }
+.rv-controls { position: relative; align-self: stretch; display: flex; justify-content: center; gap: 6px; padding: 0 8px calc(10px + var(--safe-b)); pointer-events: auto; }
 .rv-btn { min-width: 62px; height: 52px; border-radius: 12px; border: 1px solid rgba(212, 175, 55, .45); background: rgba(10, 23, 41, .85); font-size: 18px; font-weight: 800; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
 .rv-btn small { font-size: 10px; font-weight: 600; color: var(--muted); margin-top: 4px; }
 .rv-btn.off { opacity: .5; }
@@ -347,12 +348,13 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
   .grid2 { grid-template-columns: 1fr; }
   .rv-ranks { width: 170px; top: 92px; transform-origin: top left; }
   .rv-ranks-toggle { display: block; top: 92px; left: auto; right: 10px; }
-  .rv-minimap { top: auto; bottom: 168px; right: 8px; width: 132px; height: 72px; }
+  .rv-minimap { top: 132px; right: 8px; width: 132px; height: 72px; }
   .rv-title { font-size: 12px; max-width: 60vw; }
-  .rv-comment { bottom: 104px; font-size: 12px; white-space: normal; max-width: 94%; }
-  .rv-btn { min-width: 52px; height: 50px; font-size: 16px; }
+  .rv-comment { font-size: 12px; white-space: normal; max-width: 94%; }
+  .rv-btn { flex: 1 1 0; min-width: 0; max-width: 64px; height: 50px; font-size: 16px; }
+  .rv-btn small { font-size: 9px; white-space: nowrap; }
+  .rv-dock { gap: 6px; }
   .rv-controls { gap: 4px; }
-  .rv-progress { bottom: 70px; }
 }
 @media (max-width: 760px) and (orientation: portrait) {
   .rv-ranks { width: 150px; }
@@ -360,10 +362,12 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
 }
 @media (max-height: 480px) and (orientation: landscape) {
   .rv-ranks { top: 52px; transform: scale(.85); transform-origin: top left; }
-  .rv-comment { bottom: 92px; }
-  .rv-progress { bottom: 64px; }
+  .rv-dock { gap: 6px; padding-top: 16px; }
+  .rv-ranks:not(.collapsed) { max-height: 150px !important; }
+  .rv-ranks-toggle { display: block; top: 52px; left: auto; right: 196px; }
   .rv-btn { height: 44px; }
-  .rv-minimap { top: 52px; }
+  .rv-minimap { top: 80px; width: 132px; height: 72px; }
+  .rv-ranks-toggle { right: 150px !important; }
 }
 
 /* スロー演出 */
@@ -3698,8 +3702,10 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
     if (window.innerWidth < 600) this.ranksEl.classList.add('compact');
     this.mini = el('canvas', 'rv-minimap', hud);
     this.mini.width = 220; this.mini.height = 120;
-    this.commentEl = el('div', 'rv-comment', hud);
-    const prog = el('div', 'rv-progress', hud);
+    // 画面下部はひとまとまり（実況→進行バー→ボタン）で積み重ね、端末の大きさに関係なく重ならないようにする
+    const dock = this.dock = el('div', 'rv-dock', hud);
+    this.commentEl = el('div', 'rv-comment', dock);
+    const prog = el('div', 'rv-progress', dock);
     el('span', 'rv-pl', prog, 'S');
     this.barEl = el('div', 'rv-bar', prog);
     this.fillEl = el('div', 'rv-fill', this.barEl);
@@ -3707,7 +3713,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
     this.bannerEl = el('div', 'rv-banner', hud);
     this.slowEl = el('div', 'rv-slow', hud, 'SLOW');
     this.boardEl = el('div', 'rv-board', hud);
-    const ctr = this.controls = el('div', 'rv-controls', hud);
+    const ctr = this.controls = el('div', 'rv-controls', dock);
     this.btnPause = el('button', 'rv-btn', ctr, '⏸<small>一時停止</small>');
     this.btnSpeed = el('button', 'rv-btn', ctr, '1×<small>速度</small>');
     this.btnCam = el('button', 'rv-btn', ctr, '🎥<small>オート</small>');
