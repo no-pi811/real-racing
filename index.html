@@ -480,6 +480,43 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
   .tabs button { font-size: 13px; padding: 10px 4px; }
 }
 
+/* 厩舎 */
+.stable-card { background: linear-gradient(140deg, rgba(110,70,30,.55), rgba(12,28,48,.9)); border-color: rgba(240,180,106,.55); }
+.own-card { padding: 14px; }
+.own-head { display: flex; gap: 12px; align-items: center; }
+.own-head .silk { width: 30px; height: 34px; }
+.own-name { font-family: var(--serif); font-size: 22px; font-weight: 900; color: var(--gold2); }
+.own-status { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0; font-size: 13px; align-items: center; }
+.own-status select { background: rgba(0,0,0,.35); color: var(--ivory); border: 1px solid rgba(212,175,55,.5); border-radius: 8px; padding: 4px 6px; font-family: inherit; }
+.fat-bar { display: inline-block; width: 80px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.1); vertical-align: middle; overflow: hidden; }
+.fat-bar i { display: block; height: 100%; }
+.own-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 16px; }
+.own-stats .track { position: relative; overflow: visible; }
+.own-stats .pot { position: absolute; top: -3px; width: 2px; height: 13px; background: #ff8a7a; }
+.own-btns .btn { min-width: 0; }
+.own-sub { margin-top: 8px; }
+.own-sub .btn { flex: 0 0 auto; min-width: 0; }
+.sale-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.sale-item { display: flex; gap: 10px; align-items: center; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); }
+.sale-item .star { color: var(--gold2); letter-spacing: .1em; }
+.sale-buy { text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.choice-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.choice { display: flex; align-items: center; gap: 12px; text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05); min-height: 56px; }
+.choice:hover:not(:disabled) { border-color: var(--gold); background: rgba(212,175,55,.1); }
+.choice .ci { font-size: 24px; }
+.name-input { width: 100%; font-size: 20px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(212,175,55,.6); background: rgba(0,0,0,.35); color: var(--ivory); margin-top: 6px; font-family: inherit; }
+.name-err { min-height: 20px; margin-top: 6px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.swatches button { width: 32px; height: 32px; border-radius: 8px; border: 2px solid rgba(255,255,255,.2); }
+.swatches button.on { border-color: #fff; box-shadow: 0 0 0 2px var(--gold); }
+.silk-prev { text-align: center; margin-bottom: 10px; }
+.silk.big { width: 64px; height: 72px; border-radius: 10px 10px 22px 22px; border-left-width: 12px !important; border-right-width: 12px !important; }
+.own-result { margin-bottom: 14px; border-color: var(--gold); }
+.own-res-main { display: flex; align-items: center; gap: 14px; }
+.own-pos { font-family: var(--serif); font-size: 34px; font-weight: 900; color: #c5cdd8; min-width: 70px; text-align: center; }
+.own-pos.p1 { color: var(--gold2); text-shadow: 0 0 20px rgba(240,207,106,.6); } .own-pos.p2 { color: #dfe7f1; } .own-pos.p3 { color: #e0a070; }
+.own-prize { text-align: right; } .own-prize b { font-size: 22px; }
+
 </style>
 </head>
 <body>
@@ -500,6 +537,7 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
       <section id="scr-horses" class="screen"></section>
       <section id="scr-settings" class="screen"></section>
       <section id="scr-season" class="screen"></section>
+      <section id="scr-stable" class="screen"></section>
     </main>
   </div>
 
@@ -1505,6 +1543,7 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
       seasonHistory: [],
       pressStats: {},
       daily: null,
+      stable: { horses: [], nextId: 1, week: 1, sale: null, earnings: 0, silk: { body: '#14213d', pattern: 'hoops', sleeve: '#d4af37', accent: '#d4af37' } },
     };
   }
 
@@ -1623,7 +1662,19 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
     onChange(f) { this.listeners.push(f); },
 
     venue(id) { return D.VENUES.find((v) => v.id === id) || D.VENUES[0]; },
-    horse(id) { return D.HORSES[id - 1]; },
+    horse(id) {
+      if (typeof id === 'string' && this.ownHorse) { const o = this.ownHorse(id); if (o) return o; }
+      return D.HORSES[id - 1];
+    },
+    // レースでの能力（愛馬は出走登録時点の能力、相手馬はクラスに応じて補正）
+    rh(race, r) {
+      if (race && race.ownSnap && r.horseId === race.own) return race.ownSnap;
+      const h = this.horse(r.horseId);
+      const adj = (race && race.adj) || 0;
+      if (!adj) return h;
+      const c = (v) => Math.max(30, Math.min(99, v + adj));
+      return Object.assign({}, h, { spd: c(h.spd), sta: c(h.sta), acc: c(h.acc), cor: c(h.cor), kick: c(h.kick) });
+    },
     isUnlocked(id) { return this.save.unlocked.indexOf(id) >= 0; },
 
     // ---- ボーナス ----
@@ -1686,13 +1737,14 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
         const cm = D.COND[String(r.condView)].comments;
         r.condComment = cm[Math.floor(prng() * cm.length)];
       });
+      if (opt.own && this.attachOwnHorse) this.attachOwnHorse(race, opt.own, rng);
       return race;
     },
     course(race) { return new RRG.Course(this.venue(race.venueId)); },
     // condScale: オッズ算出時は気配を半分だけ織り込む（ファンも完全には見抜けない）
     simRunners(race, condScale) {
       const k = condScale == null ? 1 : condScale;
-      return race.runners.map((r) => ({ num: r.num, horse: this.horse(r.horseId), cond: (r.cond || 0) * k }));
+      return race.runners.map((r) => ({ num: r.num, horse: this.rh(race, r), cond: (r.cond || 0) * (r.horseId === race.own ? 1 : k) }));
     },
 
     async prepareOdds(race, onProgress) {
@@ -1712,7 +1764,7 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
       D.REPORTERS.forEach((rep) => {
         const rng = U.RNG(U.hashSeed(race.seed, 'press', rep.id));
         const sc = race.runners.map((r) => {
-          const h = this.horse(r.horseId);
+          const h = this.rh(race, r);
           const wp = race.odds.winProb[r.num], pop = race.odds.popularity[r.num];
           const mud = D.MUD_SCORE[h.mud] || 0, cv = r.condView || 0, n = rng.normal();
           let v;
@@ -1853,6 +1905,7 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
       st.seasonEnd = this.updateSeason(race, st);
       this.updatePress(race, order);
       st.missions = this.missionsFromRace(race, st, order);
+      if (race.own && this.ownAfterRace) { st.own = this.ownAfterRace(race, order, sim.finishTimes); }
       st.newAchievements = this.checkAchievements(race, st);
       st.newUnlocks = this.checkUnlocks();
       this.persist();
@@ -2038,6 +2091,7 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
       const race = this.current();
       if (!race || race.status !== 'open') return false;
       race.tickets.forEach((t) => { this.save.coins += t.total; });
+      if (race.own && race.entryFee) this.save.coins += race.entryFee; // 出走取消は登録料を返金
       this.save.currentRace = null;
       this.persist();
       return true;
@@ -2074,6 +2128,294 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
   };
 
   RRG.game = Game;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+  <script>
+/* js/stable.js */
+/* stable.js — 馬主モード（愛馬の購入・命名・餌・トレーニング・出走・賞金）
+ * game.js を拡張する。DOM には依存しない。
+ */
+(function (G) {
+  'use strict';
+  const RRG = G.RRG = G.RRG || {};
+  const U = RRG.util, D = RRG.data, Gm = RRG.game;
+
+  const MAX_HORSES = 3;
+  const ENTRY_FEE = 500;
+  const STATS = [['spd', 'スピード'], ['sta', 'スタミナ'], ['acc', '加速力'], ['cor', 'コーナー'], ['kick', '末脚']];
+  // 愛馬のクラス（勝つと昇級）
+  const CLASSES = ['未勝利', '1勝クラス', '2勝クラス', 'オープン'];
+  // 相手馬の能力補正（クラスが上がるほど強い相手）
+  const CLASS_ADJ = { '未勝利': -22, '1勝クラス': -15, '2勝クラス': -9, 'オープン': -4, 'G3': -1, 'G2': 1, 'G1': 3 };
+  // 1着賞金（2〜5着は割合）
+  const PRIZE = { '未勝利': 6000, '1勝クラス': 10000, '2勝クラス': 16000, 'オープン': 26000, 'G3': 42000, 'G2': 65000, 'G1': 120000 };
+  const PRIZE_RATE = [1, 0.4, 0.25, 0.15, 0.1];
+
+  const TRAININGS = [
+    { id: 'hill', name: '坂路調教', icon: '⛰️', cost: 800, fatigue: 18, gains: { spd: 1, acc: 0.8 }, desc: 'スピードと加速力を鍛える' },
+    { id: 'wood', name: 'ウッドコース', icon: '🌲', cost: 800, fatigue: 16, gains: { sta: 1, cor: 0.5 }, desc: 'スタミナとコーナーワーク' },
+    { id: 'pool', name: 'プール調教', icon: '🏊', cost: 1000, fatigue: 6, gains: { sta: 0.8 }, desc: '脚元に優しくスタミナ強化（疲れにくい）' },
+    { id: 'pair', name: '併せ馬', icon: '🐎', cost: 1200, fatigue: 22, gains: { kick: 1, cor: 0.6, spd: 0.4 }, desc: '実戦形式で末脚と勝負根性' },
+    { id: 'gate', name: 'ゲート練習', icon: '🚪', cost: 500, fatigue: 8, gains: { acc: 0.7 }, desc: '出脚（加速力）を磨く' },
+  ];
+  const FEEDS = [
+    { id: 'hay', name: '飼い葉', icon: '🌾', cost: 300, fatigue: -8, cond: 0, desc: '疲労を少し回復' },
+    { id: 'carrot', name: 'にんじん', icon: '🥕', cost: 600, fatigue: -3, cond: 1, desc: '体調が1段階上がる' },
+    { id: 'supple', name: '特製サプリ', icon: '💊', cost: 1500, fatigue: 0, cond: 0, buff: 1.6, desc: '次のトレーニング効果1.6倍' },
+    { id: 'premium', name: '高級飼料', icon: '🍱', cost: 2500, fatigue: -22, cond: 1, desc: '疲労を大きく回復し体調も上向く' },
+  ];
+  const TRAIN_PER_WEEK = 2;
+  const COND_LABEL = { '2': '絶好調', '1': '好調', '0': '普通', '-1': '不調', '-2': '絶不調' };
+  const COATS = Object.keys(D.COATS);
+  const STYLES = D.STYLES;
+
+  function stable() {
+    const s = Gm.save;
+    if (!s.stable || !Array.isArray(s.stable.horses)) s.stable = { horses: [], nextId: 1, week: 1, sale: null, earnings: 0, silk: { body: '#14213d', pattern: 'hoops', sleeve: '#d4af37', accent: '#d4af37' } };
+    return s.stable;
+  }
+
+  // 名前の検証（2〜9文字、記号の一部は使用不可、ほかの馬と重複不可）
+  function validateName(name, exceptId) {
+    name = String(name || '').trim().replace(/\s+/g, '');
+    if (name.length < 2 || name.length > 9) return { ok: false, error: '馬名は2〜9文字で入力してください' };
+    if (/[<>&"'`\\/]/.test(name)) return { ok: false, error: '使用できない記号が含まれています' };
+    const used = D.HORSES.some((h) => h.name === name) || stable().horses.some((h) => h.name === name && h.id !== exceptId);
+    if (used) return { ok: false, error: 'その馬名はすでに使われています' };
+    return { ok: true, name };
+  }
+
+  Object.assign(Gm, {
+    STABLE: { MAX_HORSES, ENTRY_FEE, STATS, CLASSES, CLASS_ADJ, PRIZE, PRIZE_RATE, TRAININGS, FEEDS, TRAIN_PER_WEEK, COND_LABEL },
+    stable,
+    validateName,
+    ownHorse(id) { return stable().horses.find((h) => h.id === id) || null; },
+
+    // ---- セリ（購入候補）----
+    sale() {
+      const st = stable();
+      if (!st.sale || st.sale.week !== st.week) {
+        const rng = U.RNG(U.hashSeed('sale', st.week, st.nextId, Gm.save.raceCounter));
+        const list = [];
+        for (let i = 0; i < 4; i++) {
+          const grade = rng(); // 素質
+          const star = grade > 0.9 ? 5 : grade > 0.7 ? 4 : grade > 0.4 ? 3 : grade > 0.15 ? 2 : 1;
+          const pot = {}, cur = {};
+          STATS.forEach(([k]) => {
+            pot[k] = Math.round(U.clamp(70 + star * 4.2 + rng.normal() * 4, 66, 98));
+            cur[k] = Math.round(U.clamp(48 + star * 1.5 + rng.normal() * 4, 40, 64));
+          });
+          list.push({
+            key: 'c' + st.week + '_' + i, star, pot, cur,
+            coat: rng.pick(COATS), sex: rng() < 0.55 ? '牡' : '牝',
+            style: rng.pick(STYLES), mud: rng.pick(['A', 'B', 'B', 'C', 'C', 'D']),
+            price: Math.round((2500 + star * star * 900 + rng() * 1500) / 100) * 100,
+            sire: rng.pick(['ステラドリーム', 'ゴールドヘリオス', 'シルバーオーシャン', 'ブレイブハート', 'ミラージュキング', 'ライトニングロード']),
+          });
+        }
+        st.sale = { week: st.week, list };
+      }
+      return st.sale.list;
+    },
+    buyHorse(key, name) {
+      const st = stable();
+      if (st.horses.length >= MAX_HORSES) return { ok: false, error: '持ち馬は最大' + MAX_HORSES + '頭までです' };
+      const c = this.sale().find((x) => x.key === key);
+      if (!c) return { ok: false, error: 'その馬はもう売れてしまいました' };
+      const v = validateName(name);
+      if (!v.ok) return v;
+      if (this.save.coins < c.price) return { ok: false, error: 'コインが不足しています' };
+      this.save.coins -= c.price;
+      const jockeys = D.JOCKEYS;
+      const h = {
+        id: 'own_' + st.nextId++, own: true, name: v.name, sex: c.sex, age: 2, coat: c.coat,
+        style: c.style, mud: c.mud, pot: c.pot, star: c.star, sire: c.sire,
+        spd: c.cur.spd, sta: c.cur.sta, acc: c.cur.acc, cor: c.cur.cor, kick: c.cur.kick,
+        silk: Object.assign({}, st.silk), jockey: jockeys[st.nextId % jockeys.length],
+        cond: 0, fatigue: 10, injury: 0, buff: 1, trainedWeek: 0, trainCount: 0,
+        cls: 0, starts: 0, wins: 0, top3: 0, earnings: 0, price: c.price, history: [],
+      };
+      st.horses.push(h);
+      st.sale.list = st.sale.list.filter((x) => x.key !== key);
+      this.persist();
+      return { ok: true, horse: h };
+    },
+    renameHorse(id, name) {
+      const h = this.ownHorse(id);
+      if (!h) return { ok: false, error: '馬が見つかりません' };
+      if (h.starts > 0) return { ok: false, error: 'デビュー後は馬名を変更できません' };
+      const v = validateName(name, id);
+      if (!v.ok) return v;
+      h.name = v.name;
+      this.persist();
+      return { ok: true };
+    },
+    setStyle(id, style) {
+      const h = this.ownHorse(id);
+      if (!h || STYLES.indexOf(style) < 0) return false;
+      h.style = style; this.persist(); return true;
+    },
+    setSilk(silk) {
+      const st = stable();
+      st.silk = Object.assign({}, silk);
+      st.horses.forEach((h) => { h.silk = Object.assign({}, silk); });
+      this.persist();
+    },
+    retireHorse(id) {
+      const st = stable();
+      const h = this.ownHorse(id);
+      if (!h) return 0;
+      if (this.isEntered(id)) return -1;
+      // 引退時は功労金（獲得賞金の1割＋購入価格の2割）
+      const bonus = Math.round((h.earnings * 0.1 + h.price * 0.2) / 100) * 100;
+      this.save.coins += bonus;
+      st.retired = st.retired || [];
+      st.retired.push({ name: h.name, starts: h.starts, wins: h.wins, earnings: h.earnings, best: h.cls });
+      st.horses = st.horses.filter((x) => x.id !== id);
+      this.persist();
+      return bonus;
+    },
+    isEntered(id) {
+      const r = this.current();
+      return !!(r && !r.settled && r.own === id);
+    },
+
+    // ---- 餌とトレーニング ----
+    feed(id, feedId) {
+      const h = this.ownHorse(id), f = FEEDS.find((x) => x.id === feedId);
+      if (!h || !f) return { ok: false, error: '不正な操作です' };
+      if (this.isEntered(id)) return { ok: false, error: '出走登録中は世話ができません' };
+      if (this.save.coins < f.cost) return { ok: false, error: 'コインが不足しています' };
+      if (f.buff && h.buff >= f.buff) return { ok: false, error: 'サプリの効果がまだ残っています' };
+      this.save.coins -= f.cost;
+      const before = { cond: h.cond, fatigue: h.fatigue };
+      h.fatigue = U.clamp(h.fatigue + f.fatigue, 0, 100);
+      if (f.cond) h.cond = Math.min(2, h.cond + f.cond);
+      if (f.buff) h.buff = f.buff;
+      this.persist();
+      return { ok: true, before, after: { cond: h.cond, fatigue: h.fatigue } };
+    },
+    train(id, trainId, rnd) {
+      const h = this.ownHorse(id), t = TRAININGS.find((x) => x.id === trainId);
+      rnd = rnd || Math.random;
+      if (!h || !t) return { ok: false, error: '不正な操作です' };
+      if (this.isEntered(id)) return { ok: false, error: '出走登録中はトレーニングできません' };
+      if (h.injury > 0) return { ok: false, error: '故障中です。あと' + h.injury + '週の休養が必要です' };
+      const st = stable();
+      if (h.trainedWeek !== st.week) { h.trainedWeek = st.week; h.trainCount = 0; }
+      if (h.trainCount >= TRAIN_PER_WEEK) return { ok: false, error: '今週のトレーニングは終わりです（週' + TRAIN_PER_WEEK + '回まで）。「次の週へ」で進めてください' };
+      if (this.save.coins < t.cost) return { ok: false, error: 'コインが不足しています' };
+      this.save.coins -= t.cost;
+      h.trainCount++;
+      const great = rnd() < 0.1;
+      const mul = (1 + h.cond * 0.12) * h.buff * (h.fatigue > 60 ? 0.6 : 1) * (great ? 2 : 1);
+      const gains = {};
+      Object.keys(t.gains).forEach((k) => {
+        const room = Math.max(0, 1 - Math.pow(h[k] / h.pot[k], 3)); // 限界に近いほど伸びにくい
+        let g = t.gains[k] * (1.6 + rnd() * 2.4) * mul * (0.35 + room * 0.9);
+        if (h[k] >= h.pot[k]) g = 0;
+        g = Math.round(g);
+        const nv = Math.min(h.pot[k], h[k] + g);
+        gains[k] = nv - h[k];
+        h[k] = nv;
+      });
+      h.buff = 1;
+      h.fatigue = U.clamp(h.fatigue + t.fatigue, 0, 100);
+      // 疲れているときの無理な調教は故障の危険
+      let injured = false;
+      if (h.fatigue > 70 && rnd() < (h.fatigue - 70) * 0.015) { injured = true; h.injury = 2 + Math.floor(rnd() * 4); h.cond = Math.max(-2, h.cond - 1); }
+      this.persist();
+      return { ok: true, gains, great, injured, fatigue: h.fatigue };
+    },
+    // 1週進める: 疲労回復・体調の変化・故障の回復・セリの入れ替え
+    advanceWeek(rnd) {
+      rnd = rnd || Math.random;
+      const st = stable();
+      st.week++;
+      st.horses.forEach((h) => {
+        if (this.isEntered(h.id)) return;
+        h.fatigue = U.clamp(h.fatigue - 30, 0, 100);
+        if (h.injury > 0) h.injury--;
+        const r = rnd();
+        if (h.cond > 0 && r < 0.4) h.cond--;
+        else if (h.cond < 0 && r < 0.45) h.cond++;
+        else if (r > 0.9) h.cond = Math.min(2, h.cond + 1);
+        else if (r > 0.82) h.cond = Math.max(-2, h.cond - 1);
+        if (st.week % 26 === 0) h.age++;
+      });
+      this.persist();
+      return st.week;
+    },
+    weekInfo() { return stable().week; },
+
+    // ---- 出走 ----
+    gradesFor(h) {
+      return h.cls >= 3 ? ['オープン', 'G3', 'G2', 'G1'] : [CLASSES[h.cls]];
+    },
+    entryCheck(id) {
+      const h = this.ownHorse(id);
+      if (!h) return '馬が見つかりません';
+      if (h.injury > 0) return '故障中のため出走できません（あと' + h.injury + '週）';
+      if (h.fatigue >= 90) return '疲労が大きすぎて出走できません。休ませてください';
+      if (this.save.coins < ENTRY_FEE) return '出走登録料（' + ENTRY_FEE + 'コイン）が不足しています';
+      const cur = this.current();
+      if (cur && !cur.settled) return '進行中のレースがあります。先に終わらせてください';
+      return null;
+    },
+    // createRace から呼ばれる: 1頭を愛馬に差し替える
+    attachOwnHorse(race, id, rng) {
+      const h = this.ownHorse(id);
+      if (!h) return;
+      const idx = Math.floor(rng() * race.runners.length);
+      const ru = race.runners[idx];
+      ru.horseId = h.id;
+      race.own = h.id;
+      race.ownNum = ru.num;
+      race.adj = CLASS_ADJ[race.grade] != null ? CLASS_ADJ[race.grade] : 0;
+      // 出走登録時点の能力で固定（登録後に能力が変わっても結果・オッズは変わらない）
+      race.ownSnap = Object.assign({}, h, { history: undefined });
+      // 疲労は能力を少し下げる
+      const tired = h.fatigue > 50 ? Math.round((h.fatigue - 50) / 12) : 0;
+      ['spd', 'acc', 'kick'].forEach((k) => { race.ownSnap[k] = Math.max(30, h[k] - tired); });
+      ru.cond = h.cond; ru.condView = h.cond;
+      const cm = D.COND[String(h.cond)].comments;
+      ru.condComment = '（愛馬）' + cm[0];
+    },
+    payEntryFee() {
+      this.save.coins -= ENTRY_FEE;
+      this.persist();
+    },
+    // 精算時に呼ばれる: 賞金・成績・疲労・昇級
+    ownAfterRace(race, order, times, rnd) {
+      rnd = rnd || Math.random;
+      const h = this.ownHorse(race.own);
+      if (!h) return null;
+      const pos = order.indexOf(race.ownNum) + 1;
+      const base = PRIZE[race.grade] || 0;
+      const prize = pos >= 1 && pos <= 5 ? Math.round(base * PRIZE_RATE[pos - 1] / 100) * 100 : 0;
+      this.save.coins += prize;
+      const st = stable();
+      st.earnings = (st.earnings || 0) + prize;
+      h.earnings += prize;
+      h.starts++;
+      if (pos === 1) h.wins++;
+      if (pos <= 3) h.top3++;
+      let promoted = false;
+      if (pos === 1 && h.cls < 3) { h.cls++; promoted = true; }
+      h.fatigue = U.clamp(h.fatigue + 45, 0, 100); // この後の週送りで30回復するので実質+15
+      let injured = false;
+      if (h.fatigue > 60 && rnd() < (h.fatigue - 60) * 0.01) { injured = true; h.injury = 2 + Math.floor(rnd() * 3); }
+      // 好走すると気分が上向く
+      if (pos <= 3) h.cond = Math.min(2, h.cond + (rnd() < 0.5 ? 1 : 0));
+      else if (pos > order.length / 2) h.cond = Math.max(-2, h.cond - (rnd() < 0.4 ? 1 : 0));
+      h.history.unshift({ week: st.week, venue: this.venue(race.venueId).short, name: race.name, grade: race.grade, pos, field: order.length, time: times ? times[race.ownNum] : null, prize });
+      if (h.history.length > 20) h.history.length = 20;
+      // レースに出たら1週進む
+      this.advanceWeek(rnd);
+      return { horse: h.name, id: h.id, pos, prize, promoted, newClass: CLASSES[h.cls], injured, injury: h.injury, grade: race.grade };
+    },
+  });
 })(typeof window !== 'undefined' ? window : globalThis);
 
 </script>
@@ -2270,6 +2612,38 @@ h2.sec::after { content: ""; flex: 1; height: 1px; background: linear-gradient(9
       this.noise(2.5, { freq: 1100, ftype: 'bandpass', q: 0.5, vol: 0.5, when: t, attack: 0.15 });
       this.tone(1046, 0.6, { type: 'triangle', vol: 0.12, when: t });
       this.tone(1568, 0.8, { type: 'triangle', vol: 0.08, when: t + 0.05 });
+    },
+    // 鐘のような音（基音＋倍音、減衰つき）
+    bell(freq, when, dur, vol) {
+      if (!this.ok) return;
+      const ctx = this.ctx, t = when;
+      [[1, 1], [2.0, 0.42], [3.01, 0.2], [4.2, 0.1]].forEach(([k, a]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.setValueAtTime(freq * k, t);
+        const v = vol * a, d = dur / Math.sqrt(k);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(v, t + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        o.connect(g); g.connect(this.nodes.se);
+        o.start(t); o.stop(t + d + 0.05);
+      });
+    },
+    // 着順・払戻確定のチャイム（ゲームオリジナルの旋律）
+    kakutei() {
+      if (!this.ok) return 0;
+      const t0 = this.ctx.currentTime + 0.05, q = 0.2;
+      // [音高(MIDI), 拍]
+      const mel = [[72, 1], [76, 1], [79, 1], [84, 2], [79, 1], [81, 1], [83, 1], [84, 4]];
+      let t = t0;
+      mel.forEach(([n, len], i) => {
+        const last = i === mel.length - 1;
+        this.bell(NOTE(n), t, last ? 2.4 : 1.1, last ? 0.2 : 0.16);
+        this.bell(NOTE(n - 12), t, last ? 2.0 : 0.8, 0.06); // 1オクターブ下を薄く重ねる
+        t += len * q;
+      });
+      // 最後に和音で締める
+      [60, 64, 67].forEach((n) => this.bell(NOTE(n), t - 4 * q, 2.6, 0.05));
+      return t - t0 + 1.5;
     },
     win(big) {
       if (!this.ok) return;
@@ -3801,6 +4175,8 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
     race.tickets.forEach((t) => t.combos.forEach((c) => c.nums.forEach((n) => { weight[n] = (weight[n] || 0) + t.stakePer; })));
     this.favNum = Object.keys(weight).sort((a, b) => weight[b] - weight[a])[0];
     this.favNum = this.favNum ? Number(this.favNum) : race.runners[0].num;
+    // 愛馬が出走していれば、常に応援対象
+    if (race.own) { myNums.add(race.ownNum); this.favNum = race.ownNum; }
 
     this.runners = race.runners.map((r) => {
       const h = game.horse(r.horseId);
@@ -4363,7 +4739,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       this.boardEl.className = 'rv-board show';
       this.boardEl.querySelector('.rv-result-btn').addEventListener('click', () => this.finish());
       this.boardEl.querySelector('.rv-replay-btn').addEventListener('click', () => this.startReplay());
-      if (!again) this.banner('確定', 'goal', 1.6);
+      if (!again) { this.banner('確定', 'goal', 1.6); RRG.audio.kakutei(); }
     };
     if (photo && !again) {
       this.boardEl.innerHTML = '<div class="rv-board-title">写真判定中…</div><div class="rv-photo">📷 1着・2着の着差を判定しています</div>';
@@ -5028,6 +5404,11 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
   function statBar(label, v) {
     return '<div class="sbar"><div class="lbl"><span>' + label + '</span><b>' + v + '</b></div><div class="track"><div class="fill" style="width:' + Math.round((v - 40) / 60 * 100) + '%"></div></div></div>';
   }
+  // 能力の限界はおおまかに表示（S:90〜 A:85〜 B:80〜 C:75〜 D）
+  function potHint(h, k) {
+    const p = h.pot[k];
+    return p >= 90 ? 'S' : p >= 85 ? 'A' : p >= 80 ? 'B' : p >= 75 ? 'C' : 'D';
+  }
   function weatherBadge(r) {
     const w = D.WEATHERS.find((x) => x.id === r.weather) || D.WEATHERS[0];
     const gg = D.GOINGS[r.going || 0];
@@ -5088,7 +5469,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       const sc = $('#scr-' + id);
       if (sc) sc.scrollTop = 0;
       if (id === 'menu') setTimeout(() => this.startHero(), 0);
-      if (id === 'menu' || id === 'season' || id === 'stats' || id === 'horses' || id === 'settings' || id === 'venue') RRG.audio.bgmStart(); else RRG.audio.bgmStop();
+      if (id === 'menu' || id === 'season' || id === 'stable' || id === 'stats' || id === 'horses' || id === 'settings' || id === 'venue') RRG.audio.bgmStart(); else RRG.audio.bgmStop();
     },
     updateCoins(instant) {
       const el = $('#coin-val');
@@ -5175,6 +5556,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
         (bonus.available ? '<div class="notice gold">🎁 <span class="grow">' + (bonus.rescue ? '救済ボーナス' : 'デイリーボーナス') + '：<b>' + U.fmtCoin(bonus.amount) + 'コイン</b>（1日1回）</span><button class="btn btn-gold btn-sm" id="mn-bonus">受け取る</button></div>' : '') +
         '<div class="menu-grid">' +
         '<button class="menu-card primary" id="mn-race"><div class="ic">🏇</div><div><b>レース開始</b><span>競馬場を選んで出走表・馬券購入へ</span></div></button>' +
+        '<button class="menu-card stable-card" id="mn-stable"><div class="ic">🐴</div><div><b>厩舎（馬主モード）</b><span>' + (g.stable().horses.length ? '愛馬 ' + g.stable().horses.map((h) => esc(h.name)).join('・') : '馬を購入して育て、レースで賞金を稼ごう') + '</span></div></button>' +
         '<button class="menu-card season-card" id="mn-season"><div class="ic">🏆</div><div><b>グランプリシーズン</b><span>第' + g.season().no + '期 ' + g.season().idx + '/' + D.SEASON.length + '戦 ・ 最終戦はG1</span></div></button>' +
         '<button class="menu-card" id="mn-venue"><div class="ic">🏟️</div><div><b>競馬場選択</b><span>開放済み ' + s.unlocked.length + ' / ' + D.VENUES.length + '</span></div></button>' +
         '<button class="menu-card" id="mn-horses"><div class="ic">📖</div><div><b>馬名鑑</b><span>全' + D.HORSES.length + '頭の能力と成績</span></div></button>' +
@@ -5186,6 +5568,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       on('mn-race', () => this.renderVenue(true));
       on('mn-venue', () => this.renderVenue(false));
       on('mn-season', () => { this.renderSeason(); this.show('season'); });
+      on('mn-stable', () => { this.renderStable(); this.show('stable'); });
       on('mn-horses', () => { this.renderHorses(); this.show('horses'); });
       on('mn-stats', () => { this.renderStats(); this.show('stats'); });
       on('mn-settings', () => { this.renderSettings(); this.show('settings'); });
@@ -5284,6 +5667,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       const bar = m.querySelector('.pbar i');
       g.prepareOdds(race, (p) => { bar.style.width = Math.round(p * 100) + '%'; }).then(() => {
         this.closeModal();
+        if (race.own) { race.entryFee = g.STABLE.ENTRY_FEE; g.payEntryFee(); }
         g.setCurrent(race);
         this.bet = { type: 'tansho', mode: 'normal', sel: [], form: [[], [], []], stake: this.bet.stake || 100, sort: this.bet.sort || 'num' };
         this.cardTab = 'card';
@@ -5291,6 +5675,175 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
         this.renderCard();
         this.show('card');
       }).catch((e) => { this.closeModal(); console.error(e); this.toast('レースの準備に失敗しました: ' + e.message, 'err', 4000); });
+    },
+
+    // ---------- 厩舎（馬主モード）----------
+    renderStable() {
+      const g = RRG.game, st = g.stable(), S = g.STABLE;
+      const cur = g.current();
+      const condTxt = (c) => '<span class="cond-mark c' + c + '">' + D.COND[String(c)].mark + '</span> ' + S.COND_LABEL[String(c)];
+      let h = '<div class="wrap"><h2 class="sec">厩舎（馬主モード）</h2>' +
+        '<div class="panel stable-top"><div class="sumgrid">' +
+        '<div class="cell"><div class="k">現在</div><div class="v">第' + st.week + '週</div></div>' +
+        '<div class="cell"><div class="k">持ち馬</div><div class="v">' + st.horses.length + ' / ' + S.MAX_HORSES + '頭</div></div>' +
+        '<div class="cell"><div class="k">通算獲得賞金</div><div class="v plus">' + U.fmtCoin(st.earnings || 0) + '</div></div>' +
+        '<div class="cell"><div class="k">所持コイン</div><div class="v">' + U.fmtCoin(g.save.coins) + '</div></div></div>' +
+        '<div class="btn-row"><button class="btn btn-green" id="sb-week">⏭ 次の週へ（疲労回復）</button><button class="btn" id="sb-silk">' + silkSwatch(st.silk) + '勝負服を変える</button></div>' +
+        '<p class="small muted">トレーニングは1頭につき週' + S.TRAIN_PER_WEEK + '回まで。「次の週へ」またはレース出走で週が進み、疲労が回復します。出走登録料は' + U.fmtCoin(S.ENTRY_FEE) + 'コイン、5着までに賞金が出ます。</p></div>';
+      if (!st.horses.length) h += '<div class="notice info" style="margin-top:14px">まだ持ち馬がいません。下の「セリ市場」で馬を購入し、名前を付けましょう。</div>';
+      st.horses.forEach((hh) => {
+        const entered = g.isEntered(hh.id);
+        const left = hh.trainedWeek === st.week ? S.TRAIN_PER_WEEK - hh.trainCount : S.TRAIN_PER_WEEK;
+        h += '<div class="panel own-card" style="margin-top:14px"><div class="own-head">' + silkSwatch(hh.silk) +
+          '<div class="grow"><div class="own-name">' + esc(hh.name) + ' <span class="grade">' + esc(S.CLASSES[hh.cls]) + '</span></div>' +
+          '<div class="small muted">' + hh.sex + hh.age + '・' + hh.coat + '・父 ' + esc(hh.sire) + '・素質 ' + '★'.repeat(hh.star) + '☆'.repeat(5 - hh.star) + '・騎手 ' + esc(hh.jockey) + '</div>' +
+          '<div class="small">成績 ' + hh.starts + '戦' + hh.wins + '勝（3着内' + hh.top3 + '回）・獲得賞金 <b class="plus">' + U.fmtCoin(hh.earnings) + '</b></div></div></div>' +
+          '<div class="own-status"><div>体調 ' + condTxt(hh.cond) + '</div><div>疲労 <span class="fat-bar"><i style="width:' + hh.fatigue + '%;background:' + (hh.fatigue > 70 ? '#e0474c' : hh.fatigue > 45 ? '#f0a03c' : '#3ccf8e') + '"></i></span> ' + hh.fatigue + '</div>' +
+          '<div>脚質 <select class="own-style" data-id="' + hh.id + '">' + D.STYLES.map((x) => '<option' + (x === hh.style ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></div>' +
+          '<div>道悪 <span class="mud-tag mud-' + hh.mud + '">' + hh.mud + '</span></div>' +
+          (hh.buff > 1 ? '<div>💊 サプリ効果中</div>' : '') + (hh.injury ? '<div class="minus">🩹 故障 あと' + hh.injury + '週</div>' : '') + (entered ? '<div style="color:var(--gold2)">🏁 出走登録中</div>' : '') + '</div>' +
+          '<div class="own-stats">' + S.STATS.map(([k, label]) => '<div class="sbar"><div class="lbl"><span>' + label + '</span><b>' + hh[k] + '<small class="muted"> / ' + (hh.pot[k] >= hh[k] + 1 ? '限界 ' + potHint(hh, k) : '限界') + '</small></b></div><div class="track"><div class="fill" style="width:' + Math.round((hh[k] - 30) / 69 * 100) + '%"></div><i class="pot" style="left:' + Math.round((hh.pot[k] - 30) / 69 * 100) + '%"></i></div></div>').join('') + '</div>' +
+          '<div class="btn-row own-btns"><button class="btn btn-gold" data-act="race" data-id="' + hh.id + '">🏁 出走</button><button class="btn btn-green" data-act="train" data-id="' + hh.id + '">💪 トレーニング（残' + left + '）</button><button class="btn" data-act="feed" data-id="' + hh.id + '">🥕 餌・ケア</button></div>' +
+          '<div class="btn-row own-sub"><button class="btn btn-sm" data-act="hist" data-id="' + hh.id + '">📜 戦績</button>' + (hh.starts === 0 ? '<button class="btn btn-sm" data-act="rename" data-id="' + hh.id + '">✏️ 名前を変える</button>' : '') + '<button class="btn btn-sm btn-ghost" data-act="retire" data-id="' + hh.id + '">引退</button></div></div>';
+      });
+      // セリ
+      h += '<div class="panel" style="margin-top:14px"><h2 class="sec">セリ市場（第' + st.week + '週）</h2><p class="small muted">素質（★）が高いほど能力の限界が高く、大きいレースを狙えます。候補は週が進むと入れ替わります。</p><div class="sale-grid">';
+      g.sale().forEach((c) => {
+        const avg = Math.round(S.STATS.reduce((a, [k]) => a + c.cur[k], 0) / 5);
+        h += '<div class="sale-item">' + silkSwatch(st.silk) + '<div class="grow"><b>' + c.sex + '2歳・' + c.coat + '</b><div class="small muted">父 ' + esc(c.sire) + '・' + c.style + '・道悪' + c.mud + '</div>' +
+          '<div class="star">' + '★'.repeat(c.star) + '<span class="muted">' + '☆'.repeat(5 - c.star) + '</span></div><div class="small">現在の能力 平均' + avg + '</div></div>' +
+          '<div class="sale-buy"><b>' + U.fmtCoin(c.price) + '</b><button class="btn btn-sm btn-gold" data-buy="' + c.key + '"' + (st.horses.length >= S.MAX_HORSES || g.save.coins < c.price ? ' disabled' : '') + '>購入</button></div></div>';
+      });
+      h += '</div>' + (st.horses.length >= S.MAX_HORSES ? '<p class="small muted">持ち馬が上限です。新しい馬を買うには、いずれかの馬を引退させてください。</p>' : '') + '</div>';
+      if (st.retired && st.retired.length) h += '<div class="panel" style="margin-top:14px"><h2 class="sec">引退馬</h2>' + st.retired.slice(-10).reverse().map((x) => '<div class="title-row"><b>' + esc(x.name) + '</b><span class="small muted">' + x.starts + '戦' + x.wins + '勝・賞金' + U.fmtCoin(x.earnings) + '</span></div>').join('') + '</div>';
+      h += '</div>';
+      $('#scr-stable').innerHTML = h;
+      const root = $('#scr-stable');
+      $('#sb-week').addEventListener('click', () => {
+        RRG.audio.click();
+        const w = g.advanceWeek();
+        this.toast('第' + w + '週になりました。疲労が回復しました', 'good');
+        this.renderStable(); this.updateCoins();
+      });
+      $('#sb-silk').addEventListener('click', () => this.silkDialog());
+      root.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => this.buyDialog(b.dataset.buy)));
+      root.querySelectorAll('.own-style').forEach((sel) => sel.addEventListener('change', () => { g.setStyle(sel.dataset.id, sel.value); this.toast('作戦を「' + sel.value + '」にしました'); }));
+      root.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+        const id = b.dataset.id, act = b.dataset.act;
+        RRG.audio.unlock(); RRG.audio.click();
+        if (act === 'train') this.trainDialog(id);
+        else if (act === 'feed') this.feedDialog(id);
+        else if (act === 'race') this.entryDialog(id);
+        else if (act === 'rename') this.nameDialog('名前を変える', g.ownHorse(id).name, (nm) => g.renameHorse(id, nm));
+        else if (act === 'hist') this.historyDialog(id);
+        else if (act === 'retire') {
+          const hh = g.ownHorse(id);
+          this.confirm(esc(hh.name) + 'を引退させますか？', '引退すると厩舎から外れます（元に戻せません）。功労金として獲得賞金の1割と購入価格の2割を受け取ります。', '引退させる', () => {
+            const bonus = g.retireHorse(id);
+            if (bonus < 0) { this.toast('出走登録中は引退できません', 'err'); return; }
+            this.toast(hh.name + 'が引退しました。功労金 +' + U.fmtCoin(bonus), 'good', 3000);
+            this.renderStable(); this.updateCoins();
+          }, 'btn-red');
+        }
+      }));
+    },
+    nameDialog(title, initial, apply, extra) {
+      const m = this.modal({
+        title, body: (extra || '') + '<label class="small muted">馬名（2〜9文字。ほかの馬と同じ名前は使えません）</label><input class="name-input" maxlength="9" value="' + esc(initial || '') + '" placeholder="例：サクラノツバサ"><div class="name-err minus small"></div>',
+        buttons: [{ label: 'キャンセル', cls: 'btn-ghost' }, { label: '決定', cls: 'btn-gold', keep: true, onClick: () => {
+          const v = m.querySelector('.name-input').value;
+          const res = apply(v);
+          if (!res.ok) { m.querySelector('.name-err').textContent = res.error; RRG.audio.error(); return; }
+          this.closeModal(); RRG.audio.coin(); this.renderStable(); this.updateCoins();
+          if (res.horse) this.toast('🐴 ' + res.horse.name + ' が厩舎に入りました！', 'good', 3000);
+        } }],
+      });
+      const inp = m.querySelector('.name-input');
+      setTimeout(() => inp.focus(), 50);
+    },
+    buyDialog(key) {
+      const g = RRG.game, c = g.sale().find((x) => x.key === key);
+      if (!c) return;
+      const ideas = ['ホシノカケラ', 'ハヤテノツバサ', 'ミライノヒカリ', 'ゴールドロータス', 'サクラヴィクトリー', 'アオゾラマーチ', 'ツキカゲマル', 'レッドファルコン'];
+      const sug = ideas[Math.floor(Math.random() * ideas.length)];
+      this.nameDialog('馬を購入して名前を付ける', '', (nm) => g.buyHorse(key, nm || ''),
+        '<p>' + c.sex + '2歳・' + c.coat + '（父 ' + esc(c.sire) + '）　素質 ' + '★'.repeat(c.star) + '　価格 <b>' + U.fmtCoin(c.price) + '</b>コイン</p><p class="small muted">名前の例：' + sug + '</p>');
+    },
+    trainDialog(id) {
+      const g = RRG.game, hh = g.ownHorse(id), S = g.STABLE;
+      const body = '<p class="small">疲労 ' + hh.fatigue + ' ／ 体調 ' + S.COND_LABEL[String(hh.cond)] + (hh.buff > 1 ? ' ／ 💊サプリ効果中' : '') + '<br><span class="muted">体調が良いほど伸び、疲労が60を超えると効果が落ちます。疲労70超での調教は故障の危険があります。</span></p><div class="choice-list">' +
+        S.TRAININGS.map((t) => '<button class="choice" data-t="' + t.id + '"' + (g.save.coins < t.cost ? ' disabled' : '') + '><span class="ci">' + t.icon + '</span><div class="grow"><b>' + t.name + '</b><div class="small muted">' + t.desc + '・疲労+' + t.fatigue + '</div></div><b>' + U.fmtCoin(t.cost) + '</b></button>').join('') + '</div>';
+      const m = this.modal({ title: '💪 ' + esc(hh.name) + 'のトレーニング', body, buttons: [{ label: '閉じる', cls: 'btn-ghost' }] });
+      m.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => {
+        const res = g.train(id, b.dataset.t);
+        this.closeModal();
+        if (!res.ok) { RRG.audio.error(); this.toast(res.error, 'err', 3500); return; }
+        const txt = Object.keys(res.gains).map((k) => S.STATS.find((x) => x[0] === k)[1] + ' +' + res.gains[k]).join('・');
+        if (res.great) { RRG.audio.win(false); RRG.fx.confetti(60); }
+        else RRG.audio.coin();
+        this.toast((res.great ? '✨ 大成功！ ' : '') + txt + (Object.values(res.gains).every((x) => !x) ? '（限界に近く伸びませんでした）' : ''), res.injured ? 'err' : 'good', 3500);
+        if (res.injured) setTimeout(() => this.toast('🩹 ' + hh.name + 'が脚を痛めました。' + hh.injury + '週の休養が必要です', 'err', 4000), 600);
+        this.renderStable(); this.updateCoins();
+      }));
+    },
+    feedDialog(id) {
+      const g = RRG.game, hh = g.ownHorse(id), S = g.STABLE;
+      const body = '<p class="small">疲労 ' + hh.fatigue + ' ／ 体調 ' + S.COND_LABEL[String(hh.cond)] + '</p><div class="choice-list">' +
+        S.FEEDS.map((f) => '<button class="choice" data-f="' + f.id + '"' + (g.save.coins < f.cost ? ' disabled' : '') + '><span class="ci">' + f.icon + '</span><div class="grow"><b>' + f.name + '</b><div class="small muted">' + f.desc + '</div></div><b>' + U.fmtCoin(f.cost) + '</b></button>').join('') + '</div>';
+      const m = this.modal({ title: '🥕 ' + esc(hh.name) + 'の世話', body, buttons: [{ label: '閉じる', cls: 'btn-ghost' }] });
+      m.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => {
+        const res = g.feed(id, b.dataset.f);
+        this.closeModal();
+        if (!res.ok) { RRG.audio.error(); this.toast(res.error, 'err', 3000); return; }
+        RRG.audio.coin();
+        this.toast('疲労 ' + res.before.fatigue + '→' + res.after.fatigue + '・体調 ' + S.COND_LABEL[String(res.before.cond)] + '→' + S.COND_LABEL[String(res.after.cond)], 'good', 3000);
+        this.renderStable(); this.updateCoins();
+      }));
+    },
+    entryDialog(id) {
+      const g = RRG.game, hh = g.ownHorse(id), S = g.STABLE;
+      const err = g.entryCheck(id);
+      if (err) { RRG.audio.error(); this.toast(err, 'err', 3500); return; }
+      const grades = g.gradesFor(hh);
+      const venues = D.VENUES.filter((v) => g.isUnlocked(v.id));
+      const body = '<p>出走登録料 <b>' + U.fmtCoin(S.ENTRY_FEE) + '</b>コイン。5着までに賞金が出ます。自分の馬に馬券を買うこともできます。</p>' +
+        '<div class="small muted">レースを選ぶ</div><div class="choice-list">' + grades.map((gr) => '<button class="choice" data-g="' + gr + '"><span class="ci">' + (gr[0] === 'G' ? '🏆' : '🏁') + '</span><div class="grow"><b>' + gr + '</b><div class="small muted">1着賞金 ' + U.fmtCoin(S.PRIZE[gr]) + '（2着' + U.fmtCoin(S.PRIZE[gr] * 0.4) + '／3着' + U.fmtCoin(S.PRIZE[gr] * 0.25) + '）</div></div></button>').join('') + '</div>' +
+        '<div class="small muted" style="margin-top:10px">競馬場</div><div class="seg venue-seg">' + venues.map((v, i) => '<button data-v="' + v.id + '" class="' + (i === 0 ? 'on' : '') + '">' + v.short + '（' + v.surface + v.lap + 'm）</button>').join('') + '</div>' +
+        (hh.fatigue > 50 ? '<div class="notice warn small">疲労が残っているため、本来の力を出し切れない可能性があります。</div>' : '');
+      const m = this.modal({ title: '🏁 ' + esc(hh.name) + 'の出走', body, buttons: [{ label: 'キャンセル', cls: 'btn-ghost' }] });
+      let venue = venues[0].id;
+      m.querySelectorAll('.venue-seg button').forEach((b) => b.addEventListener('click', () => { venue = b.dataset.v; m.querySelectorAll('.venue-seg button').forEach((x) => x.classList.toggle('on', x === b)); }));
+      m.querySelectorAll('[data-g]').forEach((b) => b.addEventListener('click', () => {
+        this.closeModal();
+        this.newRace(venue, { own: id, grade: b.dataset.g, fieldSize: 10 + Math.floor(Math.random() * 3) });
+      }));
+    },
+    historyDialog(id) {
+      const g = RRG.game, hh = g.ownHorse(id);
+      const rows = hh.history.length ? '<table class="res-table"><thead><tr><th>週</th><th>レース</th><th class="num">着順</th><th class="num">タイム</th><th class="num">賞金</th></tr></thead><tbody>' +
+        hh.history.map((x) => '<tr><td>' + x.week + '</td><td>' + esc(x.venue + ' ' + x.grade) + '</td><td class="num"><b>' + x.pos + '</b>/' + x.field + '</td><td class="num">' + (x.time ? U.fmtTime(x.time) : '-') + '</td><td class="num">' + U.fmtCoin(x.prize) + '</td></tr>').join('') + '</tbody></table>' : '<p class="muted">まだ出走していません。</p>';
+      this.modal({ title: '📜 ' + esc(hh.name) + 'の戦績', body: '<div class="scroll-x">' + rows + '</div>', buttons: [{ label: '閉じる', cls: 'btn-gold' }] });
+    },
+    silkDialog() {
+      const g = RRG.game, st = g.stable();
+      const cols = ['#14213d', '#c1121f', '#1f5fc4', '#1f9a48', '#ffbe0b', '#f4f4f0', '#111111', '#7b2cbf', '#f08a1c', '#f39ac0', '#5fa8d3', '#d4af37'];
+      const pats = [['plain', '無地'], ['hoops', '横縞'], ['stripes', '縦縞'], ['sash', 'たすき'], ['dots', '水玉'], ['chevron', '山形']];
+      const silk = Object.assign({}, st.silk);
+      const m = this.modal({
+        title: '勝負服をデザイン', body: '<div class="silk-prev"></div><div class="small muted">胴の色</div><div class="swatches" data-k="body"></div><div class="small muted">柄・袖の色</div><div class="swatches" data-k="accent"></div><div class="small muted">柄</div><div class="seg pat-seg">' + pats.map(([v, l]) => '<button data-p="' + v + '">' + l + '</button>').join('') + '</div>',
+        buttons: [{ label: 'キャンセル', cls: 'btn-ghost' }, { label: '決定', cls: 'btn-gold', onClick: () => { g.setSilk(silk); this.renderStable(); this.toast('勝負服を変更しました', 'good'); } }],
+      });
+      const upd = () => {
+        m.querySelector('.silk-prev').innerHTML = silkSwatch(silk).replace('class="silk"', 'class="silk big"');
+        m.querySelectorAll('.swatches').forEach((w) => w.querySelectorAll('button').forEach((b) => b.classList.toggle('on', silk[w.dataset.k] === b.dataset.c)));
+        m.querySelectorAll('.pat-seg button').forEach((b) => b.classList.toggle('on', silk.pattern === b.dataset.p));
+      };
+      m.querySelectorAll('.swatches').forEach((w) => {
+        w.innerHTML = cols.map((c) => '<button data-c="' + c + '" style="background:' + c + '"></button>').join('');
+        w.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { silk[w.dataset.k] = b.dataset.c; if (w.dataset.k === 'accent') silk.sleeve = b.dataset.c; upd(); }));
+      });
+      m.querySelectorAll('.pat-seg button').forEach((b) => b.addEventListener('click', () => { silk.pattern = b.dataset.p; upd(); }));
+      upd();
     },
 
     // ---------- デイリーミッション ----------
@@ -5449,7 +6002,8 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       el.innerHTML = '<div class="wrap">' +
         '<div class="race-head"><div class="rh-main"><b>' + esc(v.short) + ' ' + r.no + 'R ' + esc(r.name) + '</b><span class="grade ' + r.grade + '">' + esc(r.grade) + '</span>' +
         '<div class="rh-sub">' + esc(v.name) + '・' + v.surface + v.lap + 'm（1周）・' + r.runners.length + '頭立て' + (r.fixedTest ? '・<b style="color:#ffd36a">テスト用固定レース</b>' : '') +
-        (r.season ? '・<b style="color:#ffd36a">シーズン第' + (r.season.idx + 1) + '戦</b>' : '') + '</div>' +
+        (r.season ? '・<b style="color:#ffd36a">シーズン第' + (r.season.idx + 1) + '戦</b>' : '') +
+        (r.own ? '・<b style="color:#ffd36a">🐴 愛馬 ' + r.ownNum + '番 ' + esc(g.horse(r.own).name) + ' 出走</b>' : '') + '</div>' +
         '<div class="cond-line">' + weatherBadge(r) + '</div></div>' +
         '<div class="small muted">※オッズはゲーム内の仮想オッズ（購入時に確定する固定オッズ方式）</div></div>' +
         (g.isLow() && g.bonusState().available ? '<div class="notice warn">⚠️ <span class="grow">コインが少なくなっています</span><button class="btn btn-sm btn-gold" id="cd-bonus">救済ボーナスを受け取る</button></div>' : '') +
@@ -5484,7 +6038,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       const marks = r.marks || {};
       let h = '<table class="card-table"><thead><tr><th>印</th><th class="hide-sm">枠</th><th>馬番</th><th>馬名・騎手</th><th class="hide-sm">脚質</th><th class="hide-sm">能力</th><th class="hide-sm">道悪</th><th>気配</th><th>人気</th><th style="text-align:right">単勝</th></tr></thead><tbody>';
       r.runners.forEach((ru) => {
-        const hs = g.horse(ru.horseId), w = D.WAKU[ru.waku];
+        const hs = g.rh(r, ru), w = D.WAKU[ru.waku];
         const rec = g.save.horseRecords[hs.id];
         const rank = abilityRank(hs);
         const pop = od.popularity[ru.num];
@@ -5769,6 +6323,7 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       (st.newAchievements || []).forEach((a, i) => setTimeout(() => this.toast('🏆 実績解除「' + a.name + '」', 'good', 3200), 900 + i * 700));
       (st.newUnlocks || []).forEach((v, i) => setTimeout(() => this.toast('🏟️ ' + v.name + ' が開放されました！', 'good', 3600), 1500 + i * 700));
       if (st.seasonEnd) setTimeout(() => this.showSeasonEnd(st.seasonEnd), 1800);
+      if (st.own && st.own.pos === 1) { RRG.fx.confetti(220); RRG.audio.win(true); }
       (st.missions || []).forEach((m, i) => setTimeout(() => this.toast('🎯 ミッション達成「' + m.text + '」 メニューで報酬を受け取れます', 'good', 3600), 1200 + i * 800));
     },
 
@@ -5813,6 +6368,13 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       let h = '<div class="wrap"><div class="result-hero"><div class="muted">' + esc(v.short + ' ' + r.no + 'R ' + r.name) + ' <span class="grade ' + r.grade + '">' + esc(r.grade) + '</span></div>' +
         '<div class="big ' + (hit ? 'win' : 'lose') + '">' + (st.totalBet === 0 ? 'レース確定' : hit ? '的中！' : '残念…') + '</div>' +
         (hit && st.profit < 0 ? '<div class="muted">的中しましたが購入額を下回りました（トリガミ）</div>' : '') + '</div>';
+      if (st.own) {
+        const o = st.own;
+        h += '<div class="panel own-result"><div class="own-res-main"><span class="own-pos p' + o.pos + '">' + o.pos + '着</span><div class="grow"><b>🐴 愛馬 ' + esc(o.horse) + '</b><div class="small muted">' + esc(o.grade) + ' ・ ' + r.runners.length + '頭立て</div></div>' +
+          '<div class="own-prize"><div class="small muted">獲得賞金</div><b class="' + (o.prize ? 'plus' : '') + '">' + (o.prize ? '+' + U.fmtCoin(o.prize) : '0') + '</b></div></div>' +
+          (o.promoted ? '<div class="notice gold">🎉 ' + esc(o.horse) + ' が「' + esc(o.newClass) + '」に昇級しました！</div>' : '') +
+          (o.injured ? '<div class="notice warn">🩹 レース後に脚を痛めました。' + o.injury + '週の休養が必要です。</div>' : '') + '</div>';
+      }
       h += '<div class="panel"><div class="sumgrid">' +
         '<div class="cell"><div class="k">購入合計</div><div class="v">' + U.fmtCoin(st.totalBet) + '</div></div>' +
         '<div class="cell"><div class="k">払戻合計</div><div class="v ' + (st.totalPayout ? 'plus' : '') + '">' + U.fmtCoin(st.totalPayout) + '</div></div>' +
@@ -5843,12 +6405,13 @@ void main(){ float t = clamp((v_y - u_h) / (1.6), 0.0, 1.0); vec3 c = mix(u_hor,
       });
       h += '</tbody></table></div><p class="small muted">※ゲーム内の仮想・固定オッズによる払戻です。払戻額 ＝ 賭け金 × 購入時オッズ、利益 ＝ 払戻額 − 購入金額。</p></div>';
       const nextSeason = r.season ? g.seasonNext() : null;
-      h += '<div class="btn-row"><button class="btn btn-gold btn-lg" id="rs-next">' + (r.season ? (nextSeason && g.season().no === r.season.no ? 'シーズン次戦へ ▶' : 'シーズン画面へ ▶') : '次のレースへ ▶') + '</button><button class="btn btn-lg" id="rs-menu">メニューに戻る</button></div></div>';
+      h += '<div class="btn-row"><button class="btn btn-gold btn-lg" id="rs-next">' + (r.own ? '厩舎へ ▶' : r.season ? (nextSeason && g.season().no === r.season.no ? 'シーズン次戦へ ▶' : 'シーズン画面へ ▶') : '次のレースへ ▶') + '</button><button class="btn btn-lg" id="rs-menu">メニューに戻る</button></div></div>';
       $('#scr-result').innerHTML = h;
       $('#rs-replay').addEventListener('click', () => { RRG.audio.click(); this.replayFromResult(); });
       $('#rs-next').addEventListener('click', () => {
         RRG.audio.click(); const vid = r.venueId; g.finishRace();
-        if (r.season) { if (nextSeason && g.season().no === r.season.no) this.startSeasonRace(); else { this.renderSeason(); this.show('season'); } }
+        if (r.own) { this.renderStable(); this.show('stable'); }
+        else if (r.season) { if (nextSeason && g.season().no === r.season.no) this.startSeasonRace(); else { this.renderSeason(); this.show('season'); } }
         else this.newRace(vid);
       });
       $('#rs-menu').addEventListener('click', () => { RRG.audio.click(); g.finishRace(); this.renderMenu(); this.show('menu'); });
